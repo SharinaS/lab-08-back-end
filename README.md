@@ -23,6 +23,11 @@ https://codefellows.github.io/code-301-guide/curriculum/city-explorer-app/front-
 ### To start server:
 Type into terminal: \<nodemon>, then, to restart at any time, enter `rs`
 
+### To reset database tables within schema.sql:
+Use command in terminal: psql -d <database-name> -f <filename>, 
+
+where psql -d city_explorer -f schema.sql
+
 ## Architecture
 This application was designed with
 * JavaScript
@@ -77,10 +82,10 @@ Actual time needed to complete: 6 minutes
 ___
 ### 3 database setup <br>
 
-Estimate of time needed to complete: later
+Estimate of time needed to complete: 3 hours
 
 Start time: 1000
 
-Finish time: 0958
+Finish time: 3pm, minus an hour for lunch break
 
-Actual time needed to complete: 6 minutes
+Actual time needed to complete: 6 hours
