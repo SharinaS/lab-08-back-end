@@ -55,8 +55,9 @@ app.get('/location', (request, response) => {
 
         const geoData = responseFromSuper.body;
         const specificGeoData = geoData.results[0];
-        
+        console.log(geoData);
         const formatted = specificGeoData.formatted_address;
+        
         const lat = specificGeoData.geometry.location.lat;
         const lng = specificGeoData.geometry.location.lng;
         
