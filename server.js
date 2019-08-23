@@ -15,11 +15,9 @@ const client = new pg.Client(process.env.DATABASE_URL);
 client.connect();
 client.on('error', (error) => console.error(error));
 
-
-
 const PORT = process.env.PORT;
 
-//Constructors
+//============= Constructor Functions ============
 
 //location
 function Location(query, format, lat, lng) {
@@ -28,12 +26,20 @@ function Location(query, format, lat, lng) {
   this.latitude = lat;
   this.longitude = lng;
 }
+
 //weather
 function Day (summary, time) {
   this.forecast = summary;
   this.time = new Date(time *1000).toDateString();
 }
-//
+
+// Events
+function Event (link, name, event_date, summary){
+  this.link = link;
+  this.name = name;
+  this.event_date = new Date(event_date).toDateString();
+  this.summary = summary;
+}
 
 // =========== TARGET LOCATION from API ===========
 
@@ -93,62 +99,59 @@ app.get('/location', (request, response) => {
 })
 
     
-    // =========== TARGET WEATHER from API ===========
+// =========== TARGET WEATHER from API ===========
     
 app.get('/weather', getWeather)
-  function getWeather(request, response){
-  // console.log(request);
+  
+function getWeather(request, response){
 
   const localData = request.query.data;
   // console.log(localData);
   
   client.query(`SELECT * FROM weather WHERE search_query=$1`, [localData.search_query]).then(sqlResult => {
 
-  //found stuff in database
+    //found stuff in database
     if(sqlResult.rowCount > 0){
-      console.log('found weather stuff in databse')
+      console.log('found weather stuff in database')
+
       response.send(sqlResult.rows[0]);
       console.log(sqlResult.rows);
 
-    }else {
+    } else {
       console.log('did not find in database, googling now!');
 
-    const urlDarkSky = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${localData.latitude},${localData.longitude}`;
+      const urlDarkSky = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${localData.latitude},${localData.longitude}`;
 
 
-    superagent.get(urlDarkSky).then(responseFromSuper => {
+      superagent.get(urlDarkSky).then(responseFromSuper => {
 
-      const weatherData = responseFromSuper.body;
-      const eightDays = weatherData.daily.data;
-      const formattedDays = eightDays.map(day => new Day(day.summary, day.time));
+        const weatherData = responseFromSuper.body;
+        const eightDays = weatherData.daily.data;
+        const formattedDays = eightDays.map(day => new Day(day.summary, day.time));
 
-      //forEach for each day
-    
-      formattedDays.forEach(day => {
+        
+        // Database Data to add
+        formattedDays.forEach(day => {
 
-        const sqlQueryInsert = `INSERT INTO weather
+          const sqlQueryInsert = `INSERT INTO weather
       (search_query, forecast, time)
       VALUES
       ($1, $2, $3)`;
 
-      const valuesArray = [localData.search_query, day.forecast, day.time];
-      client.query(sqlQueryInsert, valuesArray);
-      console.log('accessing values array', valuesArray);
-    })
+          const valuesArray = [localData.search_query, day.forecast, day.time];
+          client.query(sqlQueryInsert, valuesArray);
+          console.log('accessing values array', valuesArray);
+        })
       
 
-      response.send(formattedDays)
-    }).catch(error => {
-      response.status(500).send(error.message);
-      console.error(error);
-    })
-  };
-
+        response.send(formattedDays)
+      }).catch(error => {
+        response.status(500).send(error.message);
+        console.error(error);
+      })
+    }
   });
 }
-
-
-
 
 
 // ============ EVENTBRITE from API ==============
@@ -159,26 +162,43 @@ function getEvents(request, response){
 
   let eventData = request.query.data;
 
-  const urlfromEventbrite = `https://www.eventbriteapi.com/v3/events/search/?sort_by=date&location.latitude=${eventData.latitude}&location.longitude=${eventData.longitude}&token=${process.env.EVENTBRITE_API_KEY}`;
+  // Database squery - check the database for data
+  client.query(`SELECT * FROM events WHERE search_query=$1`, [eventData.search_query]).then(sqlResult => {
 
-  superagent.get(urlfromEventbrite).then(responseFromSuper => {
-    // console.log(responseFromSuper.body)
+    if(sqlResult.rowCount === 0){
+      console.log('data from internet');
 
-    const eventbriteData = responseFromSuper.body.events;
+      const urlfromEventbrite = `https://www.eventbriteapi.com/v3/events/search/?sort_by=date&location.latitude=${eventData.latitude}&location.longitude=${eventData.longitude}&token=${process.env.EVENTBRITE_API_KEY}`;
 
-    const formattedEvents = eventbriteData.map(event => new Event(event.url, event.name.text, event.start.local, event.description.text));
+      superagent.get(urlfromEventbrite).then(responseFromSuper => {
+        // console.log(responseFromSuper.body)
+    
+        const eventbriteData = responseFromSuper.body.events;
+        const formattedEvents = eventbriteData.map(event => new Event(event.url, event.name.text, event.start.local, event.description.text));
+  
+        response.send(formattedEvents);
 
-    response.send(formattedEvents);
-  }).catch(error => {
-    response.status(500).send(error.message);
-    console.error(error);
-  })
-  function Event (link, name, event_date, summary){
-    this.link = link;
-    this.name = name;
-    this.event_date = new Date(event_date).toDateString();
-    this.summary = summary;
-  }
+        // Data structure to insert into database with where it goes
+        formattedEvents.forEach(event => {
+          const insertEvent = `
+          INSERT INTO events
+          (name, search_query, link, event_date, summary)
+          VALUE
+          ($1, $2, $3, $4, $5);`
+          client.query(insertEvent, [event.name, eventData.search_query, event.link, event.event_date, event.summary]);
+        });
+
+      }).catch(error => {
+        response.status(500).send(error.message);
+        console.error(error);
+      });
+
+    } else {
+      console.log('data already exists in event database');
+      'use the data that exists in the db';
+      response.send(sqlResult.rows);
+    }
+  });
 }
 
 // ====================================
