@@ -24,7 +24,7 @@ CREATE TABLE events (
    id SERIAL PRIMARY KEY,
    name VARCHAR(255),
    search_query VARCHAR(255),
-   link VARCHAR(255)
+   link VARCHAR(255),
    event_date VARCHAR(255),
    summary TEXT
    );

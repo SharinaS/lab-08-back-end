@@ -191,7 +191,7 @@ function getEvents(request, response){
       }).catch(error => {
         response.status(500).send(error.message);
         console.error(error);
-      });
+      })
 
     } else {
       console.log('data already exists in event database');
